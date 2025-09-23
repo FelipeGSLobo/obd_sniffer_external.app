@@ -142,7 +142,6 @@ class HomePage extends StatelessWidget {
                                   final isConnected = state.status ==
                                           ConnectionStatus.connected &&
                                       state.connectedDevice?.id == device.id;
-
                                   return ListTile(
                                     selected: isConnected,
                                     title: Text(device.name),
@@ -150,17 +149,28 @@ class HomePage extends StatelessWidget {
                                     trailing: isConnected
                                         ? const Icon(Icons.check_circle,
                                             color: Colors.green)
-                                        : (isConnecting
-                                            ? const SizedBox(
-                                                width: 24,
-                                                height: 24,
-                                                child:
-                                                    CircularProgressIndicator())
-                                            : ElevatedButton(
-                                                onPressed: () => deviceCubit
-                                                    .connect(device, logCubit),
-                                                child: const Text('Conectar'),
-                                              )),
+                                        : SizedBox(
+                                            width: 24,
+                                            height: 24,
+                                            child: isConnecting
+                                                ? const CircularProgressIndicator()
+                                                : ElevatedButton(
+                                                    onPressed: () {
+                                                      deviceCubit.connect(
+                                                          device, logCubit);
+                                                    },
+                                                    style: ElevatedButton
+                                                        .styleFrom(
+                                                      padding: EdgeInsets.zero,
+                                                      minimumSize:
+                                                          const Size(24, 24),
+                                                      tapTargetSize:
+                                                          MaterialTapTargetSize
+                                                              .shrinkWrap,
+                                                    ),
+                                                    child: const Icon(
+                                                        Icons.cast_connected)),
+                                          ),
                                   );
                                 },
                               );
