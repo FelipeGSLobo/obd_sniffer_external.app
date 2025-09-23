@@ -71,6 +71,8 @@ class ObdDeviceCubit extends Cubit<ObdDeviceState> {
       ));
     } catch (e) {
       // Em caso de erro, emite um estado de 'falha' com a mensagem.
+      print(e);
+      logCubit.addLog(ObdLogModel.received('ERROR: $e'));
       emit(state.copyWith(
         status: ConnectionStatus.failed,
         errorMessage: e.toString(),
@@ -79,14 +81,22 @@ class ObdDeviceCubit extends Cubit<ObdDeviceState> {
   }
 
   Future<void> sendCommand(String cmd, ObdLogCubit logCubit) async {
-    if (_connection == null || state.status != ConnectionStatus.connected) {
-      // Evita enviar comandos se não estiver conectado.
-      logCubit.addLog(ObdLogModel.received('ERRO: Não conectado.'));
-      return;
+    try {
+      if (_connection == null || state.status != ConnectionStatus.connected) {
+        // Evita enviar comandos se não estiver conectado.
+        logCubit.addLog(ObdLogModel.received('ERRO: Não conectado.'));
+        return;
+      }
+      await _connection!.send(cmd);
+      // Usa o construtor de fábrica para consistência.
+      logCubit.addLog(ObdLogModel.sent(cmd));
+    } catch (e) {
+      logCubit.addLog(ObdLogModel.received('ERRO ao enviar: $e'));
+      emit(state.copyWith(
+        status: state.status,
+        errorMessage: e.toString(),
+      ));
     }
-    await _connection!.send(cmd);
-    // Usa o construtor de fábrica para consistência.
-    logCubit.addLog(ObdLogModel.sent(cmd));
   }
 
   Future<void> disconnect() async {

@@ -134,6 +134,7 @@ class HomePage extends StatelessWidget {
                               }
                               return ListView.builder(
                                 itemCount: state.devices.length,
+                                itemExtent: 170,
                                 itemBuilder: (context, index) {
                                   final device = state.devices[index];
                                   final isConnecting = state.status ==
@@ -143,18 +144,19 @@ class HomePage extends StatelessWidget {
                                           ConnectionStatus.connected &&
                                       state.connectedDevice?.id == device.id;
                                   return ListTile(
+                                    key: ValueKey(index),
                                     selected: isConnected,
                                     title: Text(device.name),
                                     subtitle: Text(device.id),
-                                    trailing: isConnected
-                                        ? const Icon(Icons.check_circle,
-                                            color: Colors.green)
-                                        : SizedBox(
-                                            width: 24,
-                                            height: 24,
-                                            child: isConnecting
+                                    trailing: SizedBox(
+                                        width: 24,
+                                        height: 24,
+                                        child: isConnected
+                                            ? const Icon(Icons.check_circle,
+                                                color: Colors.green)
+                                            : isConnecting
                                                 ? const CircularProgressIndicator()
-                                                : ElevatedButton(
+                                                : IconButton(
                                                     onPressed: () {
                                                       deviceCubit.connect(
                                                           device, logCubit);
@@ -168,9 +170,9 @@ class HomePage extends StatelessWidget {
                                                           MaterialTapTargetSize
                                                               .shrinkWrap,
                                                     ),
-                                                    child: const Icon(
-                                                        Icons.cast_connected)),
-                                          ),
+                                                    icon: const Icon(
+                                                        Icons.link_outlined, size: 24,),
+                                                  )),
                                   );
                                 },
                               );

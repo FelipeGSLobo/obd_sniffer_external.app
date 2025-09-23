@@ -72,8 +72,7 @@ class ObdProvider {
   Future<ObdConnection> connect(ObdDevice device,
       {Duration timeout = const Duration(seconds: 10)}) async {
     if (device.protocol == ProtocolType.classic) {
-      final conn =
-          await fbs.BluetoothConnection.toAddress(device.id).timeout(timeout);
+      final conn = await fbs.BluetoothConnection.toAddress(device.id);
       final controller = StreamController<String>();
 
       // REFACTORED: Lógica de buffer aprimorada para lidar com o prompt '>'.
@@ -121,8 +120,7 @@ class ObdProvider {
       // ... (lógica para encontrar características permanece a mesma) ...
       for (var s in services) {
         for (var c in s.characteristics) {
-          if (c.properties.write || c.properties.writeWithoutResponse)
-            writeChar ??= c;
+          if (c.properties.write || c.properties.writeWithoutResponse) writeChar ??= c;
           if (c.properties.notify || c.properties.indicate) notifyChar ??= c;
         }
       }

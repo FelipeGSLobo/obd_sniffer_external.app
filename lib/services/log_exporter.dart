@@ -2,6 +2,8 @@ import 'dart:io';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:open_filex/open_filex.dart';
+
 
 import '../data/models/obd_log.dart';
 
@@ -31,6 +33,7 @@ class LogExporter {
     await file.writeAsString(buffer.toString());
 
     // Compartilha o arquivo
-    await Share.shareXFiles([XFile(path)], text: 'Logs da Sessão OBD');
+    await OpenFilex.open(path);
+    await Share.shareXFiles([XFile(path, mimeType: 'text/plain')], text: 'Logs da Sessão OBD');
   }
 }
