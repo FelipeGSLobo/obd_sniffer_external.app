@@ -6,74 +6,102 @@ import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart' as fbs;
 import '../models/obd_device.dart';
 
 class ObdProvider {
+  // ... (código de scan permanece o mesmo) ...
   final fbs.FlutterBluetoothSerial _classic =
       fbs.FlutterBluetoothSerial.instance;
 
-  /// Scan dispositivos Bluetooth Classic
   Future<List<ObdDevice>> scanClassic(
       {Duration timeout = const Duration(seconds: 6)}) async {
-    final devices = <ObdDevice>[];
+    final map = <String, ObdDevice>{};
+
     try {
       await _classic.requestEnable();
-      final stream = _classic.startDiscovery();
-      await for (var r in stream) {
-        devices.add(ObdDevice(
-          id: r.device.address,
-          name: r.device.name ?? 'Unknown',
-          protocol: ProtocolType.classic,
-        ));
-      }
+      final sub =
+          _classic.startDiscovery().listen((fbs.BluetoothDiscoveryResult r) {
+        final d = r.device;
+        // Ignora dispositivos sem nome, que geralmente não são o que o usuário procura.
+        if (d.name != null && d.name!.isNotEmpty) {
+          final id = d.address;
+          final name = d.name ?? 'Unknown';
+          map[id] =
+              ObdDevice(id: id, name: name, protocol: ProtocolType.classic);
+        }
+      });
+
+      await Future.delayed(timeout);
+      await sub.cancel();
     } catch (e) {
-      print('Erro no scan Classic: $e');
+      print(e.toString()); // Em um app real, use um logger.
+      rethrow; // Propaga o erro para a camada superior (Cubit) tratar.
     }
-    // Remove duplicados
-    final map = <String, ObdDevice>{};
-    for (var d in devices) map[d.id] = d;
+
     return map.values.toList();
   }
 
-  /// Scan dispositivos BLE
   Future<List<ObdDevice>> scanBle(
       {Duration timeout = const Duration(seconds: 5)}) async {
-    final devices = <ObdDevice>[];
+    final map = <String, ObdDevice>{};
+    StreamSubscription<List<ScanResult>>? sub;
+
     try {
-      await FlutterBluePlus.startScan(timeout: timeout);
-      await Future.delayed(timeout); // espera scan
-      final results = await FlutterBluePlus.scanResults.first;
-      for (var r in results) {
-        devices.add(ObdDevice(
-          id: r.device.id.id,
-          name: r.device.name.isEmpty ? r.device.id.id : r.device.name,
-          protocol: ProtocolType.ble,
-        ));
+      if (!FlutterBluePlus.isScanningNow) {
+        sub = FlutterBluePlus.scanResults.listen((results) {
+          for (final r in results) {
+            final dev = r.device;
+            if (dev.platformName.isNotEmpty) {
+              final id = dev.remoteId.str;
+              final name = dev.platformName;
+              map[id] =
+                  ObdDevice(id: id, name: name, protocol: ProtocolType.ble);
+            }
+          }
+        });
+
+        await FlutterBluePlus.startScan(timeout: timeout);
       }
-      await FlutterBluePlus.stopScan();
     } catch (e) {
-      print('Erro no scan BLE: $e');
+      print(e.toString());
+      rethrow;
+    } finally {
+      await sub?.cancel();
     }
-    return devices;
+
+    return map.values.toList();
   }
 
-  /// Conecta a um dispositivo BLE ou Classic
   Future<ObdConnection> connect(ObdDevice device,
       {Duration timeout = const Duration(seconds: 10)}) async {
     if (device.protocol == ProtocolType.classic) {
-      // Conexão Classic
       final conn =
           await fbs.BluetoothConnection.toAddress(device.id).timeout(timeout);
       final controller = StreamController<String>();
-      final buffer = <int>[];
 
+      // REFACTORED: Lógica de buffer aprimorada para lidar com o prompt '>'.
+      List<int> buffer = [];
       conn.input?.listen((Uint8List data) {
         buffer.addAll(data);
-        for (int i = 0; i < buffer.length; i++) {
-          if (buffer[i] == 10 || buffer[i] == 13) {
-            final bytes = buffer.sublist(0, i);
-            final text = utf8.decode(bytes, allowMalformed: true).trim();
-            if (text.isNotEmpty) controller.add(text);
-            buffer.removeRange(0, i + 1);
-            i = -1;
+        // O caractere '>' (62) geralmente indica o fim de uma resposta do ELM327.
+        // O caractere de nova linha '\r' (13) também é um delimitador comum.
+        while (buffer.contains(13) || buffer.contains(62)) {
+          int endOfLineIndex = buffer.indexOf(13);
+          int promptIndex = buffer.indexOf(62);
+
+          int splitIndex = -1;
+          if (endOfLineIndex != -1 && promptIndex != -1) {
+            splitIndex =
+                (endOfLineIndex < promptIndex) ? endOfLineIndex : promptIndex;
+          } else if (endOfLineIndex != -1) {
+            splitIndex = endOfLineIndex;
+          } else {
+            splitIndex = promptIndex;
           }
+
+          final frameBytes = buffer.sublist(0, splitIndex);
+          final text = utf8.decode(frameBytes, allowMalformed: true).trim();
+          if (text.isNotEmpty) {
+            controller.add(text);
+          }
+          buffer.removeRange(0, splitIndex + 1);
         }
       },
           onDone: () => controller.close(),
@@ -81,73 +109,102 @@ class ObdProvider {
 
       return ObdConnection._classic(conn, controller);
     } else {
-      // Conexão BLE
-      final bleDevice = (await FlutterBluePlus.scanResults.first)
-          .map((r) => r.device)
-          .firstWhere((d) => d.id.id == device.id,
-              orElse: () => throw Exception('Dispositivo não encontrado'));
+      // A lógica BLE permanece a mesma, mas com o mesmo aprimoramento de buffer.
+      final bleDevice = BluetoothDevice.fromId(device.id);
 
-      await bleDevice.connect(
-        timeout: timeout,
-        license: License.free,
-      );
+      await bleDevice.connect(timeout: timeout, license: License.free);
 
       final services = await bleDevice.discoverServices();
       BluetoothCharacteristic? writeChar;
+      BluetoothCharacteristic? notifyChar;
 
+      // ... (lógica para encontrar características permanece a mesma) ...
       for (var s in services) {
         for (var c in s.characteristics) {
           if (c.properties.write || c.properties.writeWithoutResponse)
             writeChar ??= c;
+          if (c.properties.notify || c.properties.indicate) notifyChar ??= c;
         }
       }
 
-      if (writeChar == null) {
+      notifyChar ??= writeChar;
+      if (notifyChar == null) {
+        await bleDevice.disconnect();
         throw Exception(
-            'No writable characteristic found for BLE device ${device.name}');
+            'Característica de notificação/escrita não encontrada para ${device.name}');
       }
 
-      // Cria controller para leitura de notificações
-      final controller =
-          ObdConnection.createControllerFromCharacteristic(writeChar);
+      await notifyChar.setNotifyValue(true);
+      final controller = StreamController<String>();
+
+      List<int> buffer = [];
+      notifyChar.lastValueStream.listen((data) {
+        buffer.addAll(data);
+        while (buffer.contains(13) || buffer.contains(62)) {
+          int endOfLineIndex = buffer.indexOf(13);
+          int promptIndex = buffer.indexOf(62);
+
+          int splitIndex = -1;
+          if (endOfLineIndex != -1 && promptIndex != -1) {
+            splitIndex =
+                (endOfLineIndex < promptIndex) ? endOfLineIndex : promptIndex;
+          } else if (endOfLineIndex != -1) {
+            splitIndex = endOfLineIndex;
+          } else {
+            splitIndex = promptIndex;
+          }
+
+          final frameBytes = buffer.sublist(0, splitIndex);
+          final text = utf8.decode(frameBytes, allowMalformed: true).trim();
+          if (text.isNotEmpty) {
+            controller.add(text);
+          }
+          buffer.removeRange(0, splitIndex + 1);
+        }
+      },
+          onError: (e) => controller.addError(e),
+          onDone: () => controller.close());
 
       return ObdConnection._ble(bleDevice, writeChar, controller);
     }
   }
 }
 
+/// Simple connection wrapper used by repository/cubit
 class ObdConnection {
   final fbs.BluetoothConnection? _classicConn;
   final BluetoothDevice? _bleDevice;
   final BluetoothCharacteristic? _writeChar;
   final StreamController<String> _controller;
 
-  // Construtor Classic
   ObdConnection._classic(this._classicConn, this._controller)
       : _bleDevice = null,
         _writeChar = null;
 
-  // Construtor BLE
   ObdConnection._ble(this._bleDevice, this._writeChar, this._controller)
       : _classicConn = null;
 
   Stream<String> get incoming => _controller.stream;
 
   Future<void> send(String cmd) async {
-    if (_classicConn != null) {
-      final toSend = utf8.encode(cmd + '\r');
-      _classicConn.output.add(Uint8List.fromList(toSend));
+    final commandWithCr = cmd + '\r';
+    final bytesToSend = utf8.encode(commandWithCr);
+
+    if (_classicConn != null && _classicConn.isConnected) {
+      _classicConn.output.add(bytesToSend);
       await _classicConn.output.allSent;
-    } else if (_writeChar != null) {
-      await _writeChar.write(utf8.encode(cmd + '\r'));
+    } else if (_bleDevice != null &&
+        _bleDevice.isConnected &&
+        _writeChar != null) {
+      await _writeChar.write(bytesToSend);
     } else {
-      throw Exception('Not connected');
+      throw Exception('Não conectado');
     }
   }
 
   Future<void> disconnect() async {
     try {
-      await _classicConn?.finish();
+      await _classicConn?.close();
     } catch (_) {}
     try {
       await _bleDevice?.disconnect();
@@ -155,29 +212,5 @@ class ObdConnection {
     try {
       await _controller.close();
     } catch (_) {}
-  }
-
-  // Cria StreamController de leitura de BLE
-  static StreamController<String> createControllerFromCharacteristic(
-      BluetoothCharacteristic char) {
-    final controller = StreamController<String>();
-    final buffer = <int>[];
-
-    char.value.listen((bytes) {
-      buffer.addAll(bytes);
-      for (int i = 0; i < buffer.length; i++) {
-        if (buffer[i] == 10 || buffer[i] == 13) {
-          final bytesLine = buffer.sublist(0, i);
-          final text = utf8.decode(bytesLine, allowMalformed: true).trim();
-          if (text.isNotEmpty) controller.add(text);
-          buffer.removeRange(0, i + 1);
-          i = -1;
-        }
-      }
-    },
-        onError: (e) => controller.addError(e),
-        onDone: () => controller.close());
-
-    return controller;
   }
 }

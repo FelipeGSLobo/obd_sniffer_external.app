@@ -12,7 +12,7 @@ class ObdRepository {
     }
   }
 
-  Future<ObdConnection> connect(ObdDevice device) async {
+  Future<dynamic> connect(ObdDevice device) async {
     return await _provider.connect(device);
   }
 }
