@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart' as fbs;
+import 'package:obd_log/bloc/OBD/obd_cubit.dart';
+import 'package:obd_log/data/models/obd_log.dart';
 import '../models/obd_device.dart';
 
 class ObdProvider {
@@ -69,7 +71,7 @@ class ObdProvider {
     return map.values.toList();
   }
 
-  Future<ObdConnection> connect(ObdDevice device,
+  Future<ObdConnection> connect(ObdDevice device, ObdLogCubit logCubit,
       {Duration timeout = const Duration(seconds: 10)}) async {
     if (device.protocol == ProtocolType.classic) {
       final conn = await fbs.BluetoothConnection.toAddress(device.id);
@@ -133,9 +135,9 @@ class ObdProvider {
       }
 
       await notifyChar.setNotifyValue(true);
-      final controller = StreamController<String>();
 
       List<int> buffer = [];
+      final controller = StreamController<String>();
       notifyChar.lastValueStream.listen((data) {
         buffer.addAll(data);
         while (buffer.contains(13) || buffer.contains(62)) {
@@ -156,6 +158,8 @@ class ObdProvider {
           final text = utf8.decode(frameBytes, allowMalformed: true).trim();
           if (text.isNotEmpty) {
             controller.add(text);
+            print("Received BLE: $text");
+            logCubit.addLog(ObdLogModel.received(text));
           }
           buffer.removeRange(0, splitIndex + 1);
         }

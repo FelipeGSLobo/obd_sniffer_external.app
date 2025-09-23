@@ -48,7 +48,7 @@ class ObdDeviceCubit extends Cubit<ObdDeviceState> {
     // Emite um estado de 'conectando' para a UI.
     emit(state.copyWith(status: ConnectionStatus.connecting));
     try {
-      _connection = await _repository.connect(device);
+      _connection = await _repository.connect(device, logCubit);
       _rxSub = _connection?.incoming.listen(
         (frame) {
           // Usa o construtor de fábrica para manter a consistência.

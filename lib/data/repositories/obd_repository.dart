@@ -1,3 +1,5 @@
+import 'package:obd_log/bloc/OBD/obd_cubit.dart';
+
 import '../providers/obd_provider.dart';
 import '../models/obd_device.dart';
 
@@ -12,7 +14,7 @@ class ObdRepository {
     }
   }
 
-  Future<dynamic> connect(ObdDevice device) async {
-    return await _provider.connect(device);
+  Future<dynamic> connect(ObdDevice device, ObdLogCubit logCubit) async {
+    return await _provider.connect(device, logCubit);
   }
 }
