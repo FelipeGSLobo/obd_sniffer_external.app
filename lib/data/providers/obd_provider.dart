@@ -101,6 +101,7 @@ class ObdProvider {
           final text = utf8.decode(frameBytes, allowMalformed: true).trim();
           if (text.isNotEmpty) {
             controller.add(text);
+            logCubit.addLog(ObdLogModel.received(text));
           }
           buffer.removeRange(0, splitIndex + 1);
         }
@@ -122,7 +123,8 @@ class ObdProvider {
       // ... (lógica para encontrar características permanece a mesma) ...
       for (var s in services) {
         for (var c in s.characteristics) {
-          if (c.properties.write || c.properties.writeWithoutResponse) writeChar ??= c;
+          if (c.properties.write || c.properties.writeWithoutResponse)
+            writeChar ??= c;
           if (c.properties.notify || c.properties.indicate) notifyChar ??= c;
         }
       }
@@ -137,7 +139,7 @@ class ObdProvider {
       await notifyChar.setNotifyValue(true);
 
       List<int> buffer = [];
-      final controller = StreamController<String>();
+      final controller = StreamController<String>.broadcast();
       notifyChar.lastValueStream.listen((data) {
         buffer.addAll(data);
         while (buffer.contains(13) || buffer.contains(62)) {
@@ -189,7 +191,7 @@ class ObdConnection {
   Stream<String> get incoming => _controller.stream;
 
   Future<void> send(String cmd) async {
-    final commandWithCr = cmd + '\r';
+    final commandWithCr = '$cmd\r';
     final bytesToSend = utf8.encode(commandWithCr);
 
     if (_classicConn != null && _classicConn.isConnected) {
@@ -214,5 +216,17 @@ class ObdConnection {
     try {
       await _controller.close();
     } catch (_) {}
+  }
+}
+
+extension ObdConnectionExt on ObdConnection {
+  /// Escuta continuamente as respostas e executa o callback [onData].
+  /// Retorna o StreamSubscription para permitir cancelamento.
+  StreamSubscription<String> listenResponses(void Function(String) onData) {
+    return incoming.listen(
+      (resp) => onData(resp),
+      onError: (err) => print("Erro OBD: $err"),
+      onDone: () => print("Conexão OBD encerrada"),
+    );
   }
 }

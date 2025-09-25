@@ -7,6 +7,7 @@ import 'package:obd_log/bloc/OBD/obd_cubit.dart';
 import 'package:obd_log/data/models/obd_device.dart';
 import 'package:obd_log/data/models/obd_log.dart';
 import 'package:obd_log/services/log_exporter.dart'; // **IMPORTANTE: Crie este arquivo**
+import 'package:obd_log/ui/components/panel_container.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 // HomePage agora é StatelessWidget, pois o estado é 100% gerenciado pelos Cubits.
@@ -93,6 +94,69 @@ class HomePage extends StatelessWidget {
                   },
                   label: const Text('Exportar Log'),
                 ),
+                ElevatedButton(
+                    onPressed: () {
+                      showDialog(
+                        context: context,
+                        builder: (context) {
+                          return AlertDialog(
+                            title: const Text("Command's List"),
+                            content: const SingleChildScrollView(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text("ATZ - Reset"),
+                                  Text("ATI - Device Info"),
+                                  Text("AT RV - Batery Voltage"),
+                                  Text("AT TA - Turn Adaptive Timing On"),
+                                  Text("AT SP 0 - Automatic Protocol"),
+                                  Text("AT DP - Show Protocol"),
+
+                                  Divider(),
+                                  Text(
+                                    "Common OBD-II Commands:",
+                                    style: TextStyle(fontSize: 17),
+                                  ),
+                                  Text("AT SP 6 - ISO 15765-4 CAN"),
+                                  Text("AT SP 7 - ISO 15765-4 CAN Extended"),
+                                  Text("AT SP 8 - ISO 15765-4 CAN Low Baud"),
+                                  Text("0100 - Supported PIDs 01-20"),
+                                  Text("010C - Engine RPM"),
+                                  Text("010D - Vehicle Speed"),
+                                  Text("0105 - Engine Coolant Temperature"),
+                                  Text("010F - Intake Air Temperature"),
+                                  Text("0111 - Throttle Position"),
+                                  Text("012F - Fuel Level Input"),
+                                  Text(
+                                      "0131 - Distance Traveled Since Codes Cleared"),
+                                  Text("0142 - Control Module Voltage"),
+                                  Text("0144 - Ambient Air Temperature"),
+                                  Text("0146 - Barometric Pressure"),
+                                  Text("015C - Engine Oil Temperature"),
+                                  Text("015E - Fuel Type"),
+
+                                  Divider(),
+                                  Text(
+                                    "SAE J1939 Commands:",
+                                    style: TextStyle(fontSize: 17),
+                                  ),
+                                  Text("AT SP A - SAE J1939"),
+                                  Text("AT CSM 0 - Turn of the silent monitoring"),
+                                  
+                                ],
+                              ),
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.of(context).pop(),
+                                child: const Text('Close'),
+                              ),
+                            ],
+                          );
+                        },
+                      );
+                    },
+                    child: const Text("Command's List")),
               ],
             ),
           ),
@@ -171,7 +235,9 @@ class HomePage extends StatelessWidget {
                                                               .shrinkWrap,
                                                     ),
                                                     icon: const Icon(
-                                                        Icons.link_outlined, size: 24,),
+                                                      Icons.link_outlined,
+                                                      size: 24,
+                                                    ),
                                                   )),
                                   );
                                 },
@@ -230,6 +296,38 @@ class HomePage extends StatelessWidget {
                                         onPressed: () => deviceCubit
                                             .sendCommand('010C', logCubit),
                                         child: const Text('RPM')),
+                                    ElevatedButton(
+                                        onPressed: () => deviceCubit
+                                            .sendCommand('010D', logCubit),
+                                        child: const Text('SPEED')),
+                                    ElevatedButton(
+                                        onPressed: () => deviceCubit
+                                            .sendCommand('ATA', logCubit),
+                                        child: const Text('ATA')),
+                                    ElevatedButton(
+                                        onPressed: () {
+                                          showDialog(
+                                            context: context,
+                                            builder: (context) {
+                                              return AlertDialog(
+                                                title: const Text("Painel"),
+                                                content:
+                                                    const SingleChildScrollView(
+                                                  child: PanelContainer(),
+                                                ),
+                                                actions: [
+                                                  TextButton(
+                                                    onPressed: () =>
+                                                        Navigator.of(context)
+                                                            .pop(),
+                                                    child: const Text('Fechar'),
+                                                  ),
+                                                ],
+                                              );
+                                            },
+                                          );
+                                        },
+                                        child: const Text('Panel')),
                                   ],
                                 ),
                               ),
@@ -293,8 +391,9 @@ class HomePage extends StatelessWidget {
                   Expanded(
                     child: BlocBuilder<ObdLogCubit, List<ObdLogModel>>(
                       builder: (context, logs) {
-                        if (logs.isEmpty)
+                        if (logs.isEmpty) {
                           return const Center(child: Text('Sem logs'));
+                        }
                         return ListView.builder(
                           itemCount: logs.length,
                           reverse:

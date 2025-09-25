@@ -99,6 +99,15 @@ class ObdDeviceCubit extends Cubit<ObdDeviceState> {
     }
   }
 
+  StreamSubscription<String> listen(
+      void Function(String) onData, ObdLogCubit logCubit) {
+    StreamSubscription<String> sub = _connection!.listenResponses((resp) {
+      onData(resp);
+      logCubit.addLog(ObdLogModel.received(resp));
+    });
+    return sub;
+  }
+
   Future<void> disconnect() async {
     await _rxSub?.cancel();
     await _connection?.disconnect();
