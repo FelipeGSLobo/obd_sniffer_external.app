@@ -20,7 +20,15 @@ class _PanelContainerState extends State<PanelContainer> {
   double rpm = 0;
   StreamSubscription<String>? subscription;
   final protocols = [
-    ObdProtocol(name: 'SAE J1939', code: 'AT SP A', rpm: '03 00 F0 04'),
+    ObdProtocol(name: 'Automático', code: 'AT SP 0', rpm: '010C'),
+    ObdProtocol(name: 'ISO 15765-4 (CAN 11-bit 500kb/s) Padrão', code: 'AT SP 6', rpm: '010C'),
+    ObdProtocol(name: 'ISO 15765-4 (CAN 29-bit 500kb/s)', code: 'AT SP 7', rpm: '010C'),
+    ObdProtocol(name: 'ISO 15765-4 (CAN 29-bit 250kb/s)', code: 'AT SP 8', rpm: '010C'),
+    ObdProtocol(name: 'SAE J1939 (Caminhões 29-bit)', code: 'AT SP A', rpm: '0300F004'),
+    ObdProtocol(name: 'ISO 14230 / KWP2000 (K-line lenta)', code: 'AT SP 3', rpm: '010C'),
+    ObdProtocol(name: 'ISO 9141-2 (K-line padrão)', code: 'AT SP 1', rpm: '010C'),
+    ObdProtocol(name: 'J1850 PWM (Ford antigo)', code: 'AT SP 2', rpm: '010C'),
+    ObdProtocol(name: 'J1850 VPW (GM antigo)', code: 'AT SP 4', rpm: '010C'),
     ObdProtocol(name: 'ISO 15765-4', code: 'AT SP 6', rpm: '010C'),
   ];
 

@@ -119,17 +119,23 @@ class ObdProvider {
       final services = await bleDevice.discoverServices();
       BluetoothCharacteristic? writeChar;
       BluetoothCharacteristic? notifyChar;
+      BluetoothCharacteristic? indicateChar;
 
       // ... (lógica para encontrar características permanece a mesma) ...
       for (var s in services) {
         for (var c in s.characteristics) {
-          if (c.properties.write || c.properties.writeWithoutResponse)
-            writeChar ??= c;
-          if (c.properties.notify || c.properties.indicate) notifyChar ??= c;
+          logCubit.addLog(ObdLogModel.received(
+              'Característica BLE encontrada: ${c.characteristicUuid}, propriedades: ${c.properties}'));
+          if (c.properties.write || c.properties.writeWithoutResponse) writeChar ??= c;
+          if (c.properties.notify) notifyChar ??= c;
+          if (c.properties.indicate) indicateChar ??= c;
         }
       }
-
+      logCubit.addLog(ObdLogModel.received(
+          'Serviços descobertos: ${services.length}, WriteChar: ${writeChar?.characteristicUuid}, NotifyChar: ${notifyChar?.characteristicUuid}'));
+      notifyChar ??= indicateChar;
       notifyChar ??= writeChar;
+
       if (notifyChar == null) {
         await bleDevice.disconnect();
         throw Exception(
@@ -159,9 +165,9 @@ class ObdProvider {
           final frameBytes = buffer.sublist(0, splitIndex);
           final text = utf8.decode(frameBytes, allowMalformed: true).trim();
           if (text.isNotEmpty) {
-            controller.add(text);
             print("Received BLE: $text");
             logCubit.addLog(ObdLogModel.received(text));
+            controller.add(text);
           }
           buffer.removeRange(0, splitIndex + 1);
         }

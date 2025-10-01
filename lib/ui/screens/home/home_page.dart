@@ -106,12 +106,16 @@ class HomePage extends StatelessWidget {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text("ATZ - Reset"),
+                                  Text("ATE0 - Eco OFF"),
+                                  Text("ATL0 - Linefeeds OFF"),
+                                  Text("ATH0 - Headers OFF, 1 para ativar"),
+                                  Text("ATH0 - Espaços OFF, respostas contínuas, 1 para ativar"),
                                   Text("ATI - Device Info"),
                                   Text("AT RV - Batery Voltage"),
                                   Text("AT TA - Turn Adaptive Timing On"),
                                   Text("AT SP 0 - Automatic Protocol"),
                                   Text("AT DP - Show Protocol"),
-
+                                  Text("AT SH EA 000 F9 - Set Header -> CAN ID: Engine ECU"),
                                   Divider(),
                                   Text(
                                     "Common OBD-II Commands:",
@@ -134,15 +138,14 @@ class HomePage extends StatelessWidget {
                                   Text("0146 - Barometric Pressure"),
                                   Text("015C - Engine Oil Temperature"),
                                   Text("015E - Fuel Type"),
-
                                   Divider(),
                                   Text(
                                     "SAE J1939 Commands:",
                                     style: TextStyle(fontSize: 17),
                                   ),
                                   Text("AT SP A - SAE J1939"),
-                                  Text("AT CSM 0 - Turn of the silent monitoring"),
-                                  
+                                  Text(
+                                      "AT CSM 0 - Turn of the silent monitoring"),
                                 ],
                               ),
                             ),
