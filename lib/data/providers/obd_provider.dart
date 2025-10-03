@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart' as fbs;
+import 'package:obd_log/bloc/Bluetooth/device_cubit.dart';
 import 'package:obd_log/bloc/OBD/obd_cubit.dart';
 import 'package:obd_log/data/models/obd_log.dart';
 import '../models/obd_device.dart';
@@ -59,7 +60,8 @@ class ObdProvider {
           }
         });
 
-        await FlutterBluePlus.startScan(timeout: timeout);
+        FlutterBluePlus.startScan(timeout: timeout);
+        await Future.delayed(timeout);
       }
     } catch (e) {
       print(e.toString());
@@ -126,7 +128,8 @@ class ObdProvider {
         for (var c in s.characteristics) {
           logCubit.addLog(ObdLogModel.received(
               'Característica BLE encontrada: ${c.characteristicUuid}, propriedades: ${c.properties}'));
-          if (c.properties.write || c.properties.writeWithoutResponse) writeChar ??= c;
+          if (c.properties.write || c.properties.writeWithoutResponse)
+            writeChar ??= c;
           if (c.properties.notify) notifyChar ??= c;
           if (c.properties.indicate) indicateChar ??= c;
         }

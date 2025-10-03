@@ -1,7 +1,9 @@
 class ObdProtocol {
   final String name;
   final String code;
-  final String rpm;
+  String rpm = "";
 
-  ObdProtocol({required this.name, required this.code, required this.rpm});
+  ObdProtocol({required this.name, required this.code, String? rpm}) {
+    if (rpm != null) this.rpm = rpm;
+  }
 }

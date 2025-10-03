@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:obd_log/bloc/Bluetooth/device_cubit.dart';
-import 'package:obd_log/bloc/Bluetooth/device_state.dart'; // **IMPORTANTE: Crie este arquivo**
+import 'package:obd_log/bloc/Bluetooth/device_state.dart';
 import 'package:obd_log/bloc/OBD/obd_cubit.dart';
 import 'package:obd_log/data/models/obd_device.dart';
 import 'package:obd_log/data/models/obd_log.dart';
-import 'package:obd_log/services/log_exporter.dart'; // **IMPORTANTE: Crie este arquivo**
+import 'package:obd_log/services/log_exporter.dart';
 import 'package:obd_log/ui/components/panel_container.dart';
 import 'package:permission_handler/permission_handler.dart';
 
@@ -108,14 +108,17 @@ class HomePage extends StatelessWidget {
                                   Text("ATZ - Reset"),
                                   Text("ATE0 - Eco OFF"),
                                   Text("ATL0 - Linefeeds OFF"),
+                                  Text(
+                                      "ATS0 - Espaços OFF, respostas contínuas, 1 para ativar"),
                                   Text("ATH0 - Headers OFF, 1 para ativar"),
-                                  Text("ATH0 - Espaços OFF, respostas contínuas, 1 para ativar"),
+                                  Text("AT SP 0 - Automatic Protocol"),
                                   Text("ATI - Device Info"),
                                   Text("AT RV - Batery Voltage"),
                                   Text("AT TA - Turn Adaptive Timing On"),
-                                  Text("AT SP 0 - Automatic Protocol"),
                                   Text("AT DP - Show Protocol"),
-                                  Text("AT SH EA 000 F9 - Set Header -> CAN ID: Engine ECU"),
+                                  Text("ATD - Display All Data"),
+                                  Text(
+                                      "AT SH EA 000 F9 - Set Header -> CAN ID: Engine ECU"),
                                   Divider(),
                                   Text(
                                     "Common OBD-II Commands:",
@@ -170,7 +173,7 @@ class HomePage extends StatelessWidget {
               children: [
                 // LISTA DE DISPOSITIVOS
                 Flexible(
-                  flex: 1,
+                  flex: 2,
                   child: Card(
                     margin: const EdgeInsets.all(8),
                     child: Column(
@@ -201,7 +204,6 @@ class HomePage extends StatelessWidget {
                               }
                               return ListView.builder(
                                 itemCount: state.devices.length,
-                                itemExtent: 170,
                                 itemBuilder: (context, index) {
                                   final device = state.devices[index];
                                   final isConnecting = state.status ==
@@ -254,7 +256,7 @@ class HomePage extends StatelessWidget {
                 ),
                 // PAINEL DE COMANDOS
                 Flexible(
-                  flex: 2,
+                  flex: 3,
                   child: Card(
                     margin: const EdgeInsets.all(8),
                     child: BlocBuilder<ObdDeviceCubit, ObdDeviceState>(
@@ -277,91 +279,124 @@ class HomePage extends StatelessWidget {
                             ),
                             // Mostra os botões de comando apenas se estiver conectado.
                             if (isConnected) ...[
-                              Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(horizontal: 8.0),
-                                child: Wrap(
-                                  spacing: 8,
+                              Expanded(
+                                  child: SingleChildScrollView(
+                                child: Column(
                                   children: [
-                                    ElevatedButton(
-                                        onPressed: () => deviceCubit
-                                            .sendCommand('ATZ', logCubit),
-                                        child: const Text('ATZ')),
-                                    ElevatedButton(
-                                        onPressed: () => deviceCubit
-                                            .sendCommand('ATI', logCubit),
-                                        child: const Text('ATI')),
-                                    ElevatedButton(
-                                        onPressed: () => deviceCubit
-                                            .sendCommand('0100', logCubit),
-                                        child: const Text('0100')),
-                                    ElevatedButton(
-                                        onPressed: () => deviceCubit
-                                            .sendCommand('010C', logCubit),
-                                        child: const Text('RPM')),
-                                    ElevatedButton(
-                                        onPressed: () => deviceCubit
-                                            .sendCommand('010D', logCubit),
-                                        child: const Text('SPEED')),
-                                    ElevatedButton(
-                                        onPressed: () => deviceCubit
-                                            .sendCommand('ATA', logCubit),
-                                        child: const Text('ATA')),
-                                    ElevatedButton(
-                                        onPressed: () {
-                                          showDialog(
-                                            context: context,
-                                            builder: (context) {
-                                              return AlertDialog(
-                                                title: const Text("Painel"),
-                                                content:
-                                                    const SingleChildScrollView(
-                                                  child: PanelContainer(),
-                                                ),
-                                                actions: [
-                                                  TextButton(
-                                                    onPressed: () =>
-                                                        Navigator.of(context)
-                                                            .pop(),
-                                                    child: const Text('Fechar'),
-                                                  ),
-                                                ],
-                                              );
-                                            },
-                                          );
-                                        },
-                                        child: const Text('Panel')),
-                                  ],
-                                ),
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.all(8.0),
-                                child: Row(
-                                  children: [
-                                    Expanded(
-                                      child: TextField(
-                                        controller: customController,
-                                        decoration: const InputDecoration(
-                                            hintText:
-                                                'Comando custom (ex: 0105)'),
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 8.0),
+                                      child: Wrap(
+                                        spacing: 8,
+                                        children: [
+                                          ElevatedButton(
+                                              onPressed: () => deviceCubit
+                                                  .sendCommand('ATZ', logCubit),
+                                              child: const Text('ATZ')),
+                                          ElevatedButton(
+                                              onPressed: () =>
+                                                  deviceCubit.sendCommand(
+                                                      'ATE0', logCubit),
+                                              child: const Text('ATE0')),
+                                          ElevatedButton(
+                                              onPressed: () =>
+                                                  deviceCubit.sendCommand(
+                                                      'ATL0', logCubit),
+                                              child: const Text('ATL0')),
+                                          ElevatedButton(
+                                              onPressed: () =>
+                                                  deviceCubit.sendCommand(
+                                                      'ATH0', logCubit),
+                                              child: const Text('ATH0')),
+                                          ElevatedButton(
+                                              onPressed: () =>
+                                                  deviceCubit.sendCommand(
+                                                      'ATSP0', logCubit),
+                                              child: const Text('ATSP0')),
+                                          ElevatedButton(
+                                              onPressed: () => deviceCubit
+                                                  .sendCommand('ATI', logCubit),
+                                              child: const Text('ATI')),
+                                          ElevatedButton(
+                                              onPressed: () =>
+                                                  deviceCubit.sendCommand(
+                                                      '0100', logCubit),
+                                              child: const Text('0100')),
+                                          ElevatedButton(
+                                              onPressed: () =>
+                                                  deviceCubit.sendCommand(
+                                                      '010C', logCubit),
+                                              child: const Text('RPM')),
+                                          ElevatedButton(
+                                              onPressed: () =>
+                                                  deviceCubit.sendCommand(
+                                                      '010D', logCubit),
+                                              child: const Text('SPEED')),
+                                          ElevatedButton(
+                                              onPressed: () => deviceCubit
+                                                  .sendCommand('ATA', logCubit),
+                                              child: const Text('ATA')),
+                                          ElevatedButton(
+                                              onPressed: () {
+                                                showDialog(
+                                                  context: context,
+                                                  builder: (context) {
+                                                    return AlertDialog(
+                                                      title:
+                                                          const Text("Painel"),
+                                                      content:
+                                                          const SingleChildScrollView(
+                                                        child: PanelContainer(),
+                                                      ),
+                                                      actions: [
+                                                        TextButton(
+                                                          onPressed: () =>
+                                                              Navigator.of(
+                                                                      context)
+                                                                  .pop(),
+                                                          child: const Text(
+                                                              'Fechar'),
+                                                        ),
+                                                      ],
+                                                    );
+                                                  },
+                                                );
+                                              },
+                                              child: const Text('Panel')),
+                                        ],
                                       ),
                                     ),
-                                    const SizedBox(width: 8),
-                                    ElevatedButton(
-                                      onPressed: () {
-                                        final txt =
-                                            customController.text.trim();
-                                        if (txt.isNotEmpty) {
-                                          deviceCubit.sendCommand(
-                                              txt, logCubit);
-                                          customController.clear();
-                                        }
-                                      },
-                                      child: const Text('Enviar'),
+                                    Padding(
+                                      padding: const EdgeInsets.all(8.0),
+                                      child: Row(
+                                        children: [
+                                          Expanded(
+                                            child: TextField(
+                                              controller: customController,
+                                              decoration: const InputDecoration(
+                                                  hintText:
+                                                      'Comando custom (ex: 0105)'),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          ElevatedButton(
+                                            onPressed: () {
+                                              final txt =
+                                                  customController.text.trim();
+                                              if (txt.isNotEmpty) {
+                                                deviceCubit.sendCommand(
+                                                    txt, logCubit);
+                                                customController.clear();
+                                              }
+                                            },
+                                            child: const Text('Enviar'),
+                                          ),
+                                        ],
+                                      ),
                                     ),
                                   ],
                                 ),
-                              ),
+                              ))
                             ] else
                               const Expanded(
                                 child: Center(

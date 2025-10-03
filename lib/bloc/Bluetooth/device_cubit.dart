@@ -108,6 +108,62 @@ class ObdDeviceCubit extends Cubit<ObdDeviceState> {
     return sub;
   }
 
+  Future<List<String>> checkObdProtocol(ObdLogCubit logCubit) async {
+    final List<String> protocols = [
+      'ATSP0', // auto
+      'ATSP1', // SAE J1850 PWM	41.6 kbaud
+      'ATSP2', // SAE J1850 VPW	10.4 kbaud
+      'ATSP3', // ISO9141-2
+      'ATSP4', // KWP slow init
+      'ATSP5', // KWP fast init
+      'ATSP6', // CAN 11bit 500kbps
+      'ATSP7', // CAN 29bit 500kbps
+      'ATSP8', // CAN 11bit 250kbps
+      'ATSP9', // CAN 29bit 250kbps
+      'ATSPA', // J1939 CAN
+      'ATSPB', // USER1 CAN
+      'ATSPC', // USER2 CAN
+    ];
+
+    await sendCommand('ATZ', logCubit);
+    await Future.delayed(const Duration(seconds: 1));
+    await sendCommand('ATE0', logCubit); // echo off
+    await Future.delayed(const Duration(milliseconds: 500));
+    await sendCommand('ATL0', logCubit); // linefeeds off
+    await Future.delayed(const Duration(milliseconds: 500));
+    await sendCommand('ATS0', logCubit); // spaces off
+    await Future.delayed(const Duration(milliseconds: 500));
+    await sendCommand('ATH0', logCubit); // headers off
+    await Future.delayed(const Duration(milliseconds: 500));
+
+    List<String> res = [];
+    for (String p in protocols) {
+      await _connection!.send(p);
+      await Future.delayed(const Duration(milliseconds: 300));
+
+      logCubit.addLog(ObdLogModel.sent("Testing $p"));
+      // Confirma se está respondendo
+      final StreamSubscription<String> subscription = listen((resp) {
+        logCubit.addLog(ObdLogModel.received("Return $p: $resp"));
+        print("Lendo retorno: $resp");
+        if ((resp.contains('41 00') || resp.contains('F004')) &&
+            !res.contains(p)) {
+          //Resposta válida
+          res.add(p);
+        }
+      }, logCubit);
+      if (['ATSPA', 'ATSPB', 'ATSPC'].contains(p)) {
+        await _connection!.send('0300F004');
+      } else {
+        await _connection!.send('0100');
+      }
+      await Future.delayed(const Duration(milliseconds: 1500));
+      subscription.cancel();
+    }
+    if (res.isEmpty) res.add("Nenhum protocolo compatível encontrado!");
+    return res;
+  }
+
   Future<void> disconnect() async {
     await _rxSub?.cancel();
     await _connection?.disconnect();

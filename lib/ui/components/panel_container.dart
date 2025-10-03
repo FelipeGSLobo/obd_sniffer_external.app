@@ -19,14 +19,27 @@ class _PanelContainerState extends State<PanelContainer> {
   Timer? timer;
   double rpm = 0;
   StreamSubscription<String>? subscription;
+  List<String> res = [];
+  bool loading = false;
   final protocols = [
+    ObdProtocol(name: 'Encontrar Protocolo', code: 'FIND'),
     ObdProtocol(name: 'Automático', code: 'AT SP 0', rpm: '010C'),
-    ObdProtocol(name: 'ISO 15765-4 (CAN 11-bit 500kb/s) Padrão', code: 'AT SP 6', rpm: '010C'),
-    ObdProtocol(name: 'ISO 15765-4 (CAN 29-bit 500kb/s)', code: 'AT SP 7', rpm: '010C'),
-    ObdProtocol(name: 'ISO 15765-4 (CAN 29-bit 250kb/s)', code: 'AT SP 8', rpm: '010C'),
-    ObdProtocol(name: 'SAE J1939 (Caminhões 29-bit)', code: 'AT SP A', rpm: '0300F004'),
-    ObdProtocol(name: 'ISO 14230 / KWP2000 (K-line lenta)', code: 'AT SP 3', rpm: '010C'),
-    ObdProtocol(name: 'ISO 9141-2 (K-line padrão)', code: 'AT SP 1', rpm: '010C'),
+    ObdProtocol(
+        name: 'ISO 15765-4 (CAN 11-bit 500kb/s) Padrão',
+        code: 'AT SP 6',
+        rpm: '010C'),
+    ObdProtocol(
+        name: 'ISO 15765-4 (CAN 29-bit 500kb/s)', code: 'AT SP 7', rpm: '010C'),
+    ObdProtocol(
+        name: 'ISO 15765-4 (CAN 29-bit 250kb/s)', code: 'AT SP 8', rpm: '010C'),
+    ObdProtocol(
+        name: 'SAE J1939 (Caminhões 29-bit)', code: 'AT SP A', rpm: '0300F004'),
+    ObdProtocol(
+        name: 'ISO 14230 / KWP2000 (K-line lenta)',
+        code: 'AT SP 3',
+        rpm: '010C'),
+    ObdProtocol(
+        name: 'ISO 9141-2 (K-line padrão)', code: 'AT SP 1', rpm: '010C'),
     ObdProtocol(name: 'J1850 PWM (Ford antigo)', code: 'AT SP 2', rpm: '010C'),
     ObdProtocol(name: 'J1850 VPW (GM antigo)', code: 'AT SP 4', rpm: '010C'),
     ObdProtocol(name: 'ISO 15765-4', code: 'AT SP 6', rpm: '010C'),
@@ -50,16 +63,7 @@ class _PanelContainerState extends State<PanelContainer> {
       return const Text('Nenhum dispositivo conectado.');
     }
 
-    void startListening() {
-      deviceCubit.sendCommand(selectedProtocol!.code, logCubit);
-      if (timer != null) {
-        timer!.cancel();
-        timer = null;
-        return;
-      }
-      timer = Timer.periodic(const Duration(seconds: 1), (Timer t) {
-        deviceCubit.sendCommand(selectedProtocol!.rpm, logCubit);
-      });
+    void startListening() async {
       //Ler retorno
       subscription = deviceCubit.listen((resp) {
         print("Lendo retorno: $resp");
@@ -75,7 +79,7 @@ class _PanelContainerState extends State<PanelContainer> {
                 rpm = ((byte4 << 8) + byte3) * 0.125;
               });
             }
-          } else if (selectedProtocol!.name.startsWith("ISO 15765-4")) {
+          } else {
             //Carro
             // RPM = ((byte2*256)+byte3)/4
             final bytes = resp.split(' ');
@@ -89,6 +93,29 @@ class _PanelContainerState extends State<PanelContainer> {
           }
         } catch (e) {}
       }, logCubit);
+
+      //Setup inicial
+      final commands = [
+        'ATD', //Display all data
+        'ATE0', // Echo Off
+        'ATL0', // Linefeeds Off
+        'ATS0', // Spaces Off
+        selectedProtocol!.code, // Set Protocol
+      ];
+      for (var c in commands) {
+        deviceCubit.sendCommand(c, logCubit);
+        await Future.delayed(const Duration(milliseconds: 500));
+      }
+
+      //Solicita RPM
+      if (timer != null) {
+        timer!.cancel();
+        timer = null;
+        return;
+      }
+      timer = Timer.periodic(const Duration(seconds: 1), (Timer t) {
+        deviceCubit.sendCommand(selectedProtocol!.rpm, logCubit);
+      });
     }
 
     Container buildGaugeContainer() {
@@ -119,6 +146,33 @@ class _PanelContainerState extends State<PanelContainer> {
           ])));
     }
 
+    Container buildSearchContainer() {
+      return Container(
+        height: 200,
+        child: Column(
+          children: [
+            if (loading)
+              const CircularProgressIndicator()
+            else
+              for (var r in res) Text(r),
+            TextButton(
+                onPressed: () async {
+                  setState(() {
+                    loading = true;
+                    res = [];
+                  });
+                  final results = await deviceCubit.checkObdProtocol(logCubit);
+                  setState(() {
+                    res = results;
+                    loading = false;
+                  });
+                },
+                child: Text(res.isEmpty ? "Iniciar Busca" : "Refazer Busca")),
+          ],
+        ),
+      );
+    }
+
     return SingleChildScrollView(
       child: Column(
         children: [
@@ -126,9 +180,22 @@ class _PanelContainerState extends State<PanelContainer> {
             hint: const Text('Selecione um protocolo'),
             value: selectedProtocol,
             items: protocols
-                .map((p) => DropdownMenuItem(value: p, child: Text(p.name)))
+                .map((p) => DropdownMenuItem(
+                      value: p,
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 250),
+                        child: Text(
+                          p.name,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ))
                 .toList(),
             onChanged: (value) {
+              subscription?.cancel();
+              subscription = null;
+              timer?.cancel();
+              timer = null;
               setState(() {
                 selectedProtocol = value;
               });
@@ -144,7 +211,11 @@ class _PanelContainerState extends State<PanelContainer> {
             ),
           ),
           const SizedBox(height: 20),
-          if (selectedProtocol != null) buildGaugeContainer(),
+          if (selectedProtocol != null)
+            if (selectedProtocol!.code.contains("FIND"))
+              buildSearchContainer()
+            else
+              buildGaugeContainer(),
         ],
       ),
     );
